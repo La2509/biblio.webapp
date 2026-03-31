@@ -18,12 +18,17 @@ export class BaseService {
       viteEnv = {};
     }
 
+    const isDev = Boolean(viteEnv.DEV);
+    const defaultBaseUrl = isDev
+      ? "http://127.0.0.1:8000"
+      : "https://biblio-webapi.onrender.com";
+
     const fromEnv =
       baseUrl ||
       viteEnv.VITE_API_URL ||
       viteEnv.VITE_API_BASE_URL ||
       (typeof window !== "undefined" && window.API_URL) ||
-      "https://biblio-webapi.onrender.com";
+      defaultBaseUrl;
 
     // Normaliza baseUrl sem barra final
     this.baseUrl = String(fromEnv).trim().replace(/\/+$/, "");

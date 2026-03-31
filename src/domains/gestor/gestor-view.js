@@ -2,13 +2,43 @@
 // Responsável por renderizar e manipular o DOM relacionado ao gestor
 
 export class GestorView {
+  showLoading(message = "Carregando...") {
+    const body = document.body;
+    if (!body) return;
+
+    let overlay = document.getElementById("app-global-loading");
+    if (!overlay) {
+      overlay = document.createElement("div");
+      overlay.id = "app-global-loading";
+      overlay.className = "app-global-loading";
+      overlay.innerHTML = `
+        <div class="app-global-loading-card">
+          <span class="app-global-loading-spinner" aria-hidden="true"></span>
+          <span id="app-global-loading-text">${message}</span>
+        </div>
+      `;
+      body.appendChild(overlay);
+    }
+
+    const textEl = overlay.querySelector("#app-global-loading-text");
+    if (textEl) textEl.textContent = message;
+    overlay.hidden = false;
+  }
+
+  hideLoading() {
+    const overlay = document.getElementById("app-global-loading");
+    if (overlay) overlay.hidden = true;
+  }
+
   renderGestores(gestores) {
+    this.hideLoading();
     // Exemplo: renderizar lista de gestores no console
     console.log("Lista de Gestores:", gestores);
     // Aqui você pode implementar a renderização no DOM
   }
 
   renderLivrosPage(livros, onAdd, onEdit, onDelete, onView, onEditExemplares, onFilter = null, initData = {}) {
+    this.hideLoading();
     const container =
       document.getElementById("livros-list") ||
       document.querySelector("#app-content");
@@ -34,6 +64,7 @@ export class GestorView {
     unidades = [],
     tipo_obras = []
   ) {
+    this.hideLoading();
     document.querySelector("#app-content").innerHTML = /* html */ `
       <div class="form-container">
         <livro-form ${livro ? "edit" : ""}></livro-form>
@@ -127,7 +158,34 @@ export class GestorView {
     }
     livroFormEl.addEventListener("submit", (event) => {
       event.preventDefault();
-      onSubmit(livroFormEl);
+      const submitButton = livroFormEl.querySelector('button[type="submit"]');
+      const originalText = submitButton ? submitButton.textContent : "Salvar Livro";
+      const feedbackEl = livroFormEl.querySelector("#livro-form-feedback");
+      if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.textContent = "Salvando...";
+      }
+      if (feedbackEl) {
+        feedbackEl.textContent = "Salvando dados do livro...";
+        feedbackEl.classList.remove("is-error", "is-success");
+        feedbackEl.classList.add("is-loading");
+      }
+
+      Promise.resolve(onSubmit(livroFormEl))
+        .catch((err) => {
+          if (feedbackEl) {
+            feedbackEl.textContent =
+              (err && err.message) || "Não foi possível salvar o livro.";
+            feedbackEl.classList.remove("is-loading", "is-success");
+            feedbackEl.classList.add("is-error");
+          }
+        })
+        .finally(() => {
+          if (submitButton) {
+            submitButton.disabled = false;
+            submitButton.textContent = originalText || "Salvar Livro";
+          }
+        });
     });
     if (onBack) {
       document.getElementById("voltar-btn").onclick = onBack;
@@ -135,6 +193,7 @@ export class GestorView {
   }
 
   renderUnidadeForm(onSubmit, unidade = null, onBack = null) {
+    this.hideLoading();
     document.querySelector("#app-content").innerHTML = /* html */ `
       <div class="form-container">
         <unidade-form ${unidade ? "edit" : ""}></unidade-form>
@@ -153,10 +212,34 @@ export class GestorView {
       }
       form.addEventListener("submit", (event) => {
         event.preventDefault();
-        // Garante que o parâmetro é o <form> real
-        if (typeof onSubmit === "function") {
-          onSubmit(event.target);
+        const submitButton = form.querySelector('button[type="submit"]');
+        const originalText = submitButton ? submitButton.textContent : "Salvar Unidade";
+        const feedbackEl = form.querySelector("#unidade-form-feedback");
+        if (submitButton) {
+          submitButton.disabled = true;
+          submitButton.textContent = "Salvando...";
         }
+        if (feedbackEl) {
+          feedbackEl.textContent = "Salvando dados da unidade...";
+          feedbackEl.classList.remove("is-error", "is-success");
+          feedbackEl.classList.add("is-loading");
+        }
+
+        Promise.resolve(typeof onSubmit === "function" ? onSubmit(event.target) : null)
+          .catch((err) => {
+            if (feedbackEl) {
+              feedbackEl.textContent =
+                (err && err.message) || "Não foi possível salvar a unidade.";
+              feedbackEl.classList.remove("is-loading", "is-success");
+              feedbackEl.classList.add("is-error");
+            }
+          })
+          .finally(() => {
+            if (submitButton) {
+              submitButton.disabled = false;
+              submitButton.textContent = originalText || "Salvar Unidade";
+            }
+          });
       });
       if (onBack) {
         document.getElementById("voltar-unidade-btn").onclick = onBack;
@@ -166,6 +249,7 @@ export class GestorView {
   }
 
   renderUnidadesPage(unidades, onAdd, onEdit, onDelete, onView) {
+    this.hideLoading();
     const container =
       document.getElementById("unidades-list") ||
       document.querySelector("#app-content");
@@ -181,6 +265,7 @@ export class GestorView {
   }
 
   renderLivroDetalhe(livro) {
+    this.hideLoading();
     document.querySelector("#app-content").innerHTML = `
       <div class="livro-detalhe-container">
         <h2><button type="button" id="voltar-btn" class="outline border-0"><i class="fa-solid fa-arrow-left"></i></button> Detalhes do Livro</h2>
@@ -218,6 +303,7 @@ export class GestorView {
   }
 
   renderUnidadeDetalhe(unidade) {
+    this.hideLoading();
     document.querySelector("#app-content").innerHTML = /* html */ `
       <div class="form-container">
         <div class="unidade-detalhe-header">
@@ -235,6 +321,7 @@ export class GestorView {
   }
 
   renderLivroExemplaresForm(livro, onSave, onBack) {
+    this.hideLoading();
     document.querySelector("#app-content").innerHTML = /* html */ `
       <div class="form-container">
         <div class="livro-form-header">
