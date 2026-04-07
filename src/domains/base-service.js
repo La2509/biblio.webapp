@@ -107,8 +107,20 @@ export class BaseService {
           if (vercelHint === "NOT_FOUND") {
             throw new Error(`404 (Vercel NOT_FOUND) na URL: ${url}`);
           }
-          const detail = raw || res.statusText || "Erro HTTP";
-          throw new Error(`Erro ${res.status} em ${url} — ${detail}`);
+          let detail = raw || res.statusText || "Erro HTTP";
+
+          if (raw && contentType.includes("application/json")) {
+            try {
+              const parsed = JSON.parse(raw);
+              if (typeof parsed?.detail === "string" && parsed.detail.trim()) {
+                detail = parsed.detail.trim();
+              }
+            } catch {
+              // Mantém o texto bruto quando a resposta não puder ser parseada.
+            }
+          }
+
+          throw new Error(detail);
         }
 
         if (contentType.includes("application/json")) {

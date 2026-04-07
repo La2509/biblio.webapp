@@ -43,7 +43,17 @@ class LivroForm extends HTMLElement {
                 </div>
                 <div>
                     <label for="isbn">ISBN:</label>
-                    <input type="text" id="isbn" name="isbn">
+                    <div class="isbn-input-wrapper" data-loading="false">
+                      <input type="text" id="isbn" name="isbn">
+                      <button
+                        type="button"
+                        id="isbn-lookup-trigger"
+                        class="isbn-lookup-trigger"
+                        aria-label="Buscar dados do ISBN ao sair do campo"
+                        title="Clique para buscar (ou saia do campo ISBN)">
+                        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                      </button>
+                    </div>
                   <small id="isbn-feedback" class="isbn-feedback" aria-live="polite"></small>
                 </div>
                 <div>
@@ -136,6 +146,8 @@ class LivroForm extends HTMLElement {
       const unidadesListDiv = this.querySelector("#livro-unidades-list");
       const form = this.querySelector("#livro-form");
       const isbnInput = this.querySelector("#isbn");
+      const isbnLookupTrigger = this.querySelector("#isbn-lookup-trigger");
+      const isbnInputWrapper = this.querySelector(".isbn-input-wrapper");
       const isbnFeedback = this.querySelector("#isbn-feedback");
       const formFeedback = this.querySelector("#livro-form-feedback");
       const isbnGlobalLoading = this.querySelector("#isbn-global-loading");
@@ -173,6 +185,14 @@ class LivroForm extends HTMLElement {
             isbnGlobalLoadingText.textContent = message;
           }
           isbnGlobalLoading.hidden = !isLoading;
+        }
+
+        if (isbnInputWrapper) {
+          isbnInputWrapper.dataset.loading = isLoading ? "true" : "false";
+        }
+
+        if (isbnLookupTrigger) {
+          isbnLookupTrigger.disabled = isLoading;
         }
       };
 
@@ -219,7 +239,10 @@ class LivroForm extends HTMLElement {
         return changedFields;
       };
 
-      const buscarPorIsbn = async () => {
+      let lookupInFlight = false;
+      let lastLookupKey = "";
+
+      const buscarPorIsbn = async (source = "blur") => {
         const isbnLookupEnabled =
           typeof import.meta !== "undefined" &&
           import.meta &&
@@ -233,9 +256,18 @@ class LivroForm extends HTMLElement {
 
         const rawIsbn = String(isbnInput?.value || "").trim();
         const isbn = rawIsbn.replace(/[^0-9Xx]/g, "");
+        const lookupKey = isbn.toUpperCase();
 
         if (isbn.length < 10) {
           setIsbnFeedback("");
+          return;
+        }
+
+        if (lookupInFlight) {
+          return;
+        }
+
+        if (source !== "input-hint" && lastLookupKey === lookupKey) {
           return;
         }
 
@@ -258,6 +290,7 @@ class LivroForm extends HTMLElement {
         }
 
         try {
+          lookupInFlight = true;
           setLookupLoading(true, "Buscando dados do ISBN...");
           setIsbnFeedback("Consultando ISBN e traduzindo dados...", "loading");
           const result = await lookupFn.call(window.gestorController.service, rawIsbn);
@@ -268,6 +301,7 @@ class LivroForm extends HTMLElement {
           }
 
           const changed = preencherCamposComLookup(data);
+          lastLookupKey = lookupKey;
           if (changed > 0) {
             setIsbnFeedback("Dados preenchidos automaticamente com sucesso.", "success");
           } else {
@@ -278,6 +312,7 @@ class LivroForm extends HTMLElement {
             (error && error.message) || "Não foi possível consultar o ISBN agora.";
           setIsbnFeedback(message, "error");
         } finally {
+          lookupInFlight = false;
           setLookupLoading(false);
         }
       };
@@ -285,10 +320,43 @@ class LivroForm extends HTMLElement {
       let isbnDebounceTimer = null;
       if (isbnInput) {
         isbnInput.addEventListener("input", () => {
+          lastLookupKey = "";
           if (isbnDebounceTimer) clearTimeout(isbnDebounceTimer);
+
+          const rawIsbn = String(isbnInput.value || "").trim();
+          const isbn = rawIsbn.replace(/[^0-9Xx]/g, "");
+
+          if (!rawIsbn) {
+            setIsbnFeedback("");
+            return;
+          }
+
+          if (isbn.length < 10) {
+            setIsbnFeedback("Complete o ISBN para habilitar a busca automática ao sair do campo.", "neutral");
+            return;
+          }
+
           isbnDebounceTimer = setTimeout(() => {
-            buscarPorIsbn();
+            setIsbnFeedback(
+              "ISBN pronto. Ao sair do campo, vamos buscar os dados automaticamente.",
+              "neutral"
+            );
           }, 700);
+        });
+
+        isbnInput.addEventListener("blur", () => {
+          if (isbnDebounceTimer) clearTimeout(isbnDebounceTimer);
+          buscarPorIsbn("blur");
+        });
+      }
+
+      if (isbnLookupTrigger && isbnInput) {
+        isbnLookupTrigger.addEventListener("click", () => {
+          if (document.activeElement === isbnInput) {
+            isbnInput.blur();
+            return;
+          }
+          buscarPorIsbn("icon");
         });
       }
 

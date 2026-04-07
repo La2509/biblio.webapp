@@ -35,6 +35,47 @@
     gap: 1rem;
 }
 
+.isbn-input-wrapper {
+    position: relative;
+}
+
+.isbn-input-wrapper input {
+    padding-right: 2.6rem;
+}
+
+.isbn-lookup-trigger {
+    position: absolute;
+    top: 0;
+    right: 0.55rem;
+    transform: translateY(50%);
+    width: 1.7rem;
+    height: 1.7rem;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--color-feedback-neutral);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+.isbn-lookup-trigger:hover,
+.isbn-lookup-trigger:focus-visible {
+    color: var(--color-feedback-loading);
+    background: var(--color-surface-muted);
+}
+
+.isbn-input-wrapper[data-loading="true"] .isbn-lookup-trigger {
+    color: var(--color-feedback-loading);
+    cursor: progress;
+}
+
+.isbn-input-wrapper[data-loading="true"] .isbn-lookup-trigger i {
+    animation: isbn-inline-spin 0.9s linear infinite;
+}
+
 .isbn-feedback {
     display: block;
     margin-top: 0.35rem;
@@ -98,6 +139,12 @@
 }
 
 @keyframes isbn-global-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes isbn-inline-spin {
     to {
         transform: rotate(360deg);
     }
